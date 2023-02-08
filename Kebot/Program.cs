@@ -1,0 +1,95 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using System.Threading.Tasks;
+using Discord;
+using Discord.Commands;
+using Discord.WebSocket;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace TutorialBot
+{
+    class Program
+    {
+        readonly DateTime now = DateTime.Now;
+        static void Main(string[] args) => new Program().RunBotAsync().GetAwaiter().GetResult();
+
+        private DiscordSocketClient _client;
+        private CommandService _commands;
+        private IServiceProvider _services;
+
+        public async Task RunBotAsync()
+        {
+
+            var config = new DiscordSocketConfig()
+            {
+                GatewayIntents = GatewayIntents.All
+            };
+            _client = new DiscordSocketClient(config);
+            _commands = new CommandService();
+
+            _services = new ServiceCollection()
+                .AddSingleton(_client)
+                .AddSingleton(_commands)
+                .BuildServiceProvider();
+
+            _client.UserJoined += AnnounceUserJoin;
+
+            string token = "MTAzMDc3NjI0NTU1MTYzNjQ4MA.GYC9vZ.fXmBdVyMCjmF2Nx8rSI68t8cM0Tyo0OUYVXC3A";
+
+            _client.Log += _client_Log;
+
+            await RegisterCommandsAsync();
+
+            await _client.LoginAsync(TokenType.Bot, token);
+
+            await _client.StartAsync();
+
+            await Task.Delay(-1);
+
+        }
+
+        private Task _client_Log(LogMessage arg)
+        {
+            Console.WriteLine(arg);
+            return Task.CompletedTask;
+        }
+
+        public async Task RegisterCommandsAsync()
+        {
+            _client.MessageReceived += HandleCommandAsync;
+            await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
+        }
+
+        private async Task HandleCommandAsync(SocketMessage arg)
+        {
+            var message = arg as SocketUserMessage;
+            var context = new SocketCommandContext(_client, message);
+            if (message.Author.IsBot) return;
+
+            int argPos = 0;
+            if (message.HasStringPrefix("!", ref argPos))
+            {
+                var result = await _commands.ExecuteAsync(context, argPos, _services);
+                if (!result.IsSuccess) Console.WriteLine(result.ErrorReason);
+                if (result.Error.Equals(CommandError.UnmetPrecondition)) await message.Channel.SendMessageAsync(result.ErrorReason);
+            }
+        }
+
+        public async Task AnnounceUserJoin(SocketGuildUser user)
+        {
+            var embed = new EmbedBuilder();
+            var sb = new StringBuilder();
+            embed.WithColor(new Color(0, 255, 0));
+            embed.Title = "Добро пожаловать на сервер IT Generator";
+            sb.AppendLine(user.Mention);
+            sb.AppendLine("Доступные команды: !courses, !about, !3d, !unity, !2d, !python, !design");
+            embed.Description = sb.ToString();
+            var channel = _client.GetChannel(1030764714541719604) as SocketTextChannel;
+            await channel.SendMessageAsync(null, false, embed.Build());
+            Console.WriteLine(now.ToString("F") + " " + user.Mention + " user join");
+        }
+    }
+}
