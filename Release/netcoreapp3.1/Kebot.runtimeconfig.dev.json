@@ -1,0 +1,8 @@
+{
+  "runtimeOptions": {
+    "additionalProbingPaths": [
+      "C:\\Users\\Kebaru\\.dotnet\\store\\|arch|\\|tfm|",
+      "C:\\Users\\Kebaru\\.nuget\\packages"
+    ]
+  }
+}
